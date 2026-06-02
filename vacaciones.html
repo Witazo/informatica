@@ -2,36 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Vacaciones 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --bg: #0f0f12; --card: #18181b; --text: #e4e4e7;
-        }
+        :root { --bg: #0f0f12; --card: #18181b; --text: #e4e4e7; }
         body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        
         .selector-usuario { display: flex; gap: 10px; margin-bottom: 20px; }
         .btn-user { padding: 10px 20px; border-radius: 20px; border: 1px solid #444; cursor: pointer; color: white; background: #222; }
         .btn-user.activo { border-color: #fff; transform: scale(1.05); }
-
-        .resumen-global { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; width: 100%; max-width: 600px; display: flex; justify-content: space-around; font-weight: bold;}
-
-        .calendario { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; width: 100%; max-width: 1200px; }
+        .resumen-global { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; width: 100%; max-width: 600px; display: flex; justify-content: space-around; font-weight: bold; }
+        .calendario { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; width: 100%; max-width: 1200px; }
         .mes { background: var(--card); padding: 15px; border-radius: 10px; }
         .dias-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
-        .dia { aspect-ratio: 1; border-radius: 4px; background: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; font-size: 0.8rem; }
+        .dia { aspect-ratio: 1; border-radius: 4px; background: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; font-size: 0.7rem; }
         
-        /* Colores Solicitados */
-        .v-joaquin { background: #166534 !important; } /* Verde */
-        .v-juan { background: #581c87 !important; }    /* Morado */
-        .v-leon { background: #991b1b !important; }    /* Rojo */
-        .v-sergio { background: #a16207 !important; }  /* Amarillo */
-        
-        .punto { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; }
-        .p-azul { background: #60a5fa; }
-        .p-rojo { background: #ef4444; }
-        .p-negro { background: #000000; }
-        .p-azul-oscuro { background: #1d4ed8; }
+        /* Colores y puntos */
+        .v-Joaquin { background: #166534 !important; } /* Verde */
+        .v-Juan { background: #581c87 !important; }    /* Morado */
+        .v-Leon { background: #991b1b !important; }    /* Rojo */
+        .v-Sergio { background: #a16207 !important; }  /* Amarillo */
     </style>
 </head>
 <body>
@@ -48,43 +38,71 @@
     <div class="calendario" id="cal"></div>
 
     <script>
-        const supabase = window.supabase.createClient("TU_URL", "TU_KEY");
+        const supabase = window.supabase.createClient(
+            "https://ipxuihzkakirvlszxknd.supabase.co",
+            "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5"
+        );
+
         let usuarioActual = 'Joaquin';
-        let datos = {}; // { '2026-06-02': ['Joaquin', 'Juan'] }
+        let datos = {}; 
 
         function setUsuario(u) {
             usuarioActual = u;
-            document.querySelectorAll('.btn-user').forEach(b => b.classList.toggle('activo', b.innerText === u));
+            document.querySelectorAll('.btn-user').forEach(b => b.classList.toggle('activo', b.innerText.normalize("NFD").replace(/[\u0300-\u036f]/g, "") === u));
         }
 
         async function cargarDatos() {
+            // USANDO LA TABLA CORRECTA: vacacionestotal
             const { data } = await supabase.from('vacacionestotal').select('*');
             datos = {};
-            data.forEach(r => {
-                if(!datos[r.fecha]) datos[r.fecha] = [];
-                datos[r.fecha].push(r.usuario);
-            });
+            if(data) {
+                data.forEach(r => {
+                    if(!datos[r.fecha]) datos[r.fecha] = [];
+                    datos[r.fecha].push(r.usuario);
+                });
+            }
             render();
         }
 
         async function toggleVacaciones(fecha) {
             if(!datos[fecha]) datos[fecha] = [];
-            
             const idx = datos[fecha].indexOf(usuarioActual);
+            
             if(idx > -1) {
                 datos[fecha].splice(idx, 1);
+                // USANDO LA TABLA CORRECTA: vacacionestotal
                 await supabase.from('vacacionestotal').delete().match({fecha, usuario: usuarioActual});
             } else {
                 if(datos[fecha].length >= 3) { alert("Máximo 3 personas por día"); return; }
                 datos[fecha].push(usuarioActual);
+                // USANDO LA TABLA CORRECTA: vacacionestotal
                 await supabase.from('vacacionestotal').insert({fecha, usuario: usuarioActual, anio: 2026});
             }
             render();
         }
 
         function render() {
-            // (Aquí implementarías el bucle de 12 meses creando los divs como en tu archivo original)
-            // Cada vez que crees un div día, le añades la clase según datos[fecha] y el punto correspondiente
+            const cal = document.getElementById('cal');
+            cal.innerHTML = '';
+            for(let m=0; m<12; m++) {
+                const mesDiv = document.createElement('div');
+                mesDiv.className = 'mes';
+                mesDiv.innerHTML = `<h3>${m+1} / 2026</h3><div class="dias-grid" id="m${m}"></div>`;
+                cal.appendChild(mesDiv);
+                const grid = mesDiv.querySelector('.dias-grid');
+                const days = new Date(2026, m+1, 0).getDate();
+                for(let d=1; d<=days; d++) {
+                    const fecha = `2026-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const dia = document.createElement('div');
+                    dia.className = 'dia';
+                    if(datos[fecha]) {
+                        datos[fecha].forEach(u => dia.classList.add('v-'+u));
+                    }
+                    dia.innerHTML = d;
+                    dia.onclick = () => toggleVacaciones(fecha);
+                    grid.appendChild(dia);
+                }
+            }
             actualizarResumen();
         }
 
