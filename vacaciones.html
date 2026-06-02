@@ -128,10 +128,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.55rem; /* Texto muy pequeño */
+            font-size: 0.55rem; 
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.9); /* Sombra para que destaque */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
             line-height: 1;
             overflow: hidden;
             letter-spacing: 0.5px;
@@ -184,9 +184,20 @@
         document.getElementById('b2026').classList.toggle('active', anio === 2026);
         document.getElementById('b2027').classList.toggle('active', anio === 2027);
         
-        // Selector de Usuarios
+        // Selector de Usuarios (Contando solo Lunes a Viernes)
         document.getElementById('selector').innerHTML = Object.keys(users).map(u => {
-            const total = Object.keys(datos).filter(f => datos[f].includes(u)).length;
+            const total = Object.keys(datos).filter(f => {
+                if(!datos[f].includes(u)) return false; // Si no es de este usuario, lo descartamos
+                
+                // Dividimos la fecha (ej: "2026-05-15")
+                const [y, m, d] = f.split('-');
+                // Obtenemos el día de la semana (0 = Domingo, 1 = Lunes... 6 = Sábado)
+                const dayOfWeek = new Date(y, m - 1, d).getDay();
+                
+                // Solo sumamos si NO es domingo (0) y NO es sábado (6)
+                return dayOfWeek !== 0 && dayOfWeek !== 6;
+            }).length;
+            
             return `<div class="user-card ${activeUser === u ? 'active' : ''}" onclick="activeUser='${u}'; render()">
                 <span style="color:${users[u]}; font-size: 0.85rem;">●</span>
                 <strong>${u}</strong>
@@ -239,7 +250,6 @@
                 
                 let innerContenido = `<span class="day-num">${d}</span>`;
                 
-                // Aquí es donde inyectamos el nombre (u) dentro de su franja de color
                 if(datos[f]) {
                     datos[f].forEach(u => {
                         innerContenido += `<div class="bloque-color" style="background:${users[u]}">${u}</div>`;
