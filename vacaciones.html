@@ -7,25 +7,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg: #09090b; --card: #18181b; --text: #fafafa; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 15px; margin: 0; }
-        
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 15px; }
         .container { max-width: 900px; margin: 0 auto; }
         .nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
         button { padding: 10px 20px; border-radius: 8px; border: none; background: #27272a; color: white; cursor: pointer; }
         
-        .selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .user-card { padding: 12px; background: var(--card); border-radius: 10px; cursor: pointer; border: 2px solid transparent; text-align: center; min-width: 80px; }
+        .selector { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .user-card { padding: 12px; background: var(--card); border-radius: 10px; cursor: pointer; border: 2px solid transparent; text-align: center; }
         .user-card.active { border-color: #3b82f6; }
+        .total-box { font-size: 0.8rem; margin-top: 5px; color: #888; }
 
-        .resumen-panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-        .resumen-item { margin-bottom: 8px; border-bottom: 1px solid #27272a; padding-bottom: 4px; }
+        .resumen-panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; }
+        .resumen-item { margin-bottom: 5px; }
 
         .calendario { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
         .mes-card { background: var(--card); padding: 10px; border-radius: 12px; }
-        .grid-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.7rem; color: #888; }
-        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 5px; }
-        .dia { aspect-ratio: 1; background: #27272a; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; cursor: pointer; position: relative; }
-        .bloque { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; display: flex; }
+        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .dia { aspect-ratio: 1; background: #27272a; border-radius: 4px; display: flex; flex-direction: column; cursor: pointer; position: relative; overflow: hidden; }
+        .day-num { font-size: 0.6rem; padding: 2px; }
+        .bloque-color { flex: 1; width: 100%; }
     </style>
 </head>
 <body>
@@ -50,7 +50,10 @@
     async function cargar() {
         const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anio);
         datos = {};
-        data?.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
+        data?.forEach(r => { 
+            if(!datos[r.fecha]) datos[r.fecha] = []; 
+            datos[r.fecha].push(r.usuario); 
+        });
         render();
     }
 
@@ -64,21 +67,25 @@
             await sb.from('vacaciones_v2').insert({fecha: f, usuario: activeUser, anio: anio});
             datos[f].push(activeUser);
         }
-        render();
+        cargar();
     }
 
     function render() {
-        // Selector
-        document.getElementById('selector').innerHTML = Object.keys(users).map(u => `
+        // Selector y Totales
+        document.getElementById('selector').innerHTML = Object.keys(users).map(u => {
+            const total = Object.keys(datos).filter(f => datos[f].includes(u)).length;
+            return `
             <div class="user-card ${activeUser === u ? 'active' : ''}" onclick="activeUser='${u}'; render()">
                 <div style="color:${users[u]}">●</div> ${u}
-            </div>`).join('');
+                <div class="total-box">Días: ${total}</div>
+            </div>`;
+        }).join('');
 
         // Resumen
-        let resHtml = '<h3>Resumen de días</h3>';
+        let resHtml = '<h3>Resumen detallado</h3>';
         Object.keys(users).forEach(u => {
-            let userDates = [];
             const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+            let userDates = [];
             meses.forEach((m, i) => {
                 const dias = Object.keys(datos).filter(f => f.startsWith(`${anio}-${String(i+1).padStart(2,'0')}`) && datos[f].includes(u)).map(f => f.split('-')[2]);
                 if(dias.length > 0) userDates.push(`${m}:${dias.join(',')}`);
@@ -94,14 +101,17 @@
             const mesDiv = document.createElement('div'); mesDiv.className = 'mes-card';
             const firstDay = new Date(anio, idx, 1).getDay();
             const daysInMonth = new Date(anio, idx + 1, 0).getDate();
-            mesDiv.innerHTML = `<h3>${m}</h3><div class="grid-header"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div><div class="grid-dias" id="m${idx}"></div>`;
+            mesDiv.innerHTML = `<h3>${m}</h3><div class="grid-dias" id="m${idx}"></div>`;
             cal.appendChild(mesDiv);
             const grid = mesDiv.querySelector('#m'+idx);
             for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div'));
             for(let d=1; d<=daysInMonth; d++) {
                 const f = `${anio}-${String(idx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const div = document.createElement('div'); div.className = 'dia'; div.innerHTML = d;
-                if(datos[f]) datos[f].forEach(u => div.innerHTML += `<div class="bloque" style="background:${users[u]}"></div>`);
+                const div = document.createElement('div'); div.className = 'dia'; 
+                div.innerHTML = `<span class="day-num">${d}</span>`;
+                if(datos[f]) {
+                    datos[f].forEach(u => div.innerHTML += `<div class="bloque-color" style="background:${users[u]}"></div>`);
+                }
                 div.onclick = () => toggle(f);
                 grid.appendChild(div);
             }
