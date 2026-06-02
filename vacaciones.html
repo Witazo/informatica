@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Vacaciones 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -38,10 +39,9 @@
     <div class="calendario" id="cal"></div>
 
     <script>
-        // --- SUSTITUYE AQUÍ TUS CREDENCIALES ---
+        // --- CONFIGURACIÓN SUPABASE ---
         const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co";
         const SUPABASE_KEY = "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5";
-        
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let usuarioActual = 'Joaquin';
@@ -49,12 +49,15 @@
 
         function setUsuario(u) {
             usuarioActual = u;
-            document.querySelectorAll('.btn-user').forEach(b => b.classList.toggle('activo', b.innerText.includes(u)));
+            // Actualiza visualmente qué botón está activo
+            document.querySelectorAll('.btn-user').forEach(b => {
+                b.classList.toggle('activo', b.innerText.includes(u));
+            });
         }
 
         async function cargarDatos() {
             try {
-                // USANDO LA TABLA "vacaciones" (como muestra tu captura)
+                // Usando tu tabla "vacaciones"
                 const { data, error } = await supabase.from('vacaciones').select('*');
                 
                 if (error) throw error;
@@ -66,10 +69,9 @@
                         datos[r.fecha].push(r.usuario);
                     });
                 }
-                document.getElementById('status').innerText = "";
                 render();
             } catch (err) {
-                document.getElementById('status').innerText = "Error al conectar: " + err.message;
+                document.getElementById('status').innerText = "Error: " + err.message;
             }
         }
 
@@ -130,6 +132,7 @@
             return Object.values(datos).flat().filter(u => u === user).length;
         }
 
+        // Inicialización al cargar la página
         cargarDatos();
         setUsuario('Joaquin');
     </script>
