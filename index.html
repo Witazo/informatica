@@ -522,4 +522,32 @@
             const vacasJoaquin = vacacionesPorAnio[anio].Joaquín[fechaStr] || false;
             const vacasSergio = vacacionesPorAnio[anio].Sergio[fechaStr] || false;
 
-            let titularBase
+            let titularBase = semana.titularBase;
+            let titularEfectivo = titularBase;
+
+            if (titularBase === 'Sergio' && vacasSergio) {
+                titularEfectivo = 'Joaquín';
+            } else if (titularBase === 'Joaquín' && vacasJoaquin) {
+                titularEfectivo = 'Sergio';
+            }
+
+            return {
+                semanaId: semana.id,
+                mesCobro: semana.mesCobro,
+                titularBase: titularBase,
+                titularEfectivo: titularEfectivo,
+                vacasJoaquin: vacasJoaquin,
+                vacasSergio: vacasSergio
+            };
+        }
+
+        function calcularGuardiasMensuales() {
+            let cobros = { Sergio: Array(12).fill(0), Joaquín: Array(12).fill(0) };
+            const semanas = semanasPorAnio[anioActual];
+            const vacasAnio = vacacionesPorAnio[anioActual];
+
+            semanas.forEach(semana => {
+                if (semana.mesCobro < 0 || semana.mesCobro > 11) return;
+
+                let titularOriginal = semana.titularBase;
+                let compañero = (titularOriginal ===
