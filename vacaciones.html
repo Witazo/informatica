@@ -7,101 +7,109 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg: #09090b; --card: #18181b; --text: #fafafa; }
-        body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; padding: 10px; }
-        .nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .user-card { padding: 10px; background: var(--card); border-radius: 8px; cursor: pointer; border: 2px solid transparent; font-size: 0.9rem; }
-        .user-card.active { border-color: #3b82f6; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 15px; margin: 0; }
         
+        .container { max-width: 900px; margin: 0 auto; }
+        .nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        button { padding: 10px 20px; border-radius: 8px; border: none; background: #27272a; color: white; cursor: pointer; }
+        
+        .selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .user-card { padding: 12px; background: var(--card); border-radius: 10px; cursor: pointer; border: 2px solid transparent; text-align: center; min-width: 80px; }
+        .user-card.active { border-color: #3b82f6; }
+
+        .resumen-panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        .resumen-item { margin-bottom: 8px; border-bottom: 1px solid #27272a; padding-bottom: 4px; }
+
         .calendario { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
         .mes-card { background: var(--card); padding: 10px; border-radius: 12px; }
-        .grid-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; }
-        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .grid-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.7rem; color: #888; }
+        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 5px; }
         .dia { aspect-ratio: 1; background: #27272a; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; cursor: pointer; position: relative; }
-        .bloque { position: absolute; bottom: 0; width: 100%; height: 4px; display: flex; }
-        
-        .resumen-panel { background: var(--card); padding: 15px; border-radius: 12px; margin-top: 20px; font-size: 0.9rem; }
+        .bloque { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; display: flex; }
     </style>
 </head>
 <body>
 
-    <h2 style="text-align:center">Gestión de Vacaciones</h2>
-    <div class="nav"><button onclick="setAnio(2026)">2026</button><button onclick="setAnio(2027)">2027</button></div>
+<div class="container">
+    <h2 style="text-align:center">Panel de Vacaciones</h2>
+    <div class="nav">
+        <button onclick="setAnio(2026)">2026</button>
+        <button onclick="setAnio(2027)">2027</button>
+    </div>
+
     <div id="selector" class="selector"></div>
-    <div id="cal" class="calendario"></div>
     <div id="resumen" class="resumen-panel"></div>
+    <div id="cal" class="calendario"></div>
+</div>
 
-    <script>
-        const sb = window.supabase.createClient("https://ipxuihzkakirvlszxknd.supabase.co", "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5");
-        const users = { 'Joaquin': '#16a34a', 'Juan': '#7e22ce', 'Leon': '#dc2626', 'Sergio': '#ca8a04' };
-        let anio = 2026, activeUser = 'Joaquin', datos = {};
+<script>
+    const sb = window.supabase.createClient("https://ipxuihzkakirvlszxknd.supabase.co", "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5");
+    const users = { 'Joaquin': '#16a34a', 'Juan': '#7e22ce', 'Leon': '#dc2626', 'Sergio': '#ca8a04' };
+    let anio = 2026, activeUser = 'Joaquin', datos = {};
 
-        async function cargar() {
-            const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anio);
-            datos = {};
-            data?.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
-            render();
+    async function cargar() {
+        const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anio);
+        datos = {};
+        data?.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
+        render();
+    }
+
+    async function toggle(f) {
+        if(!datos[f]) datos[f] = [];
+        const idx = datos[f].indexOf(activeUser);
+        if(idx > -1) {
+            await sb.from('vacaciones_v2').delete().match({fecha: f, usuario: activeUser, anio: anio});
+            datos[f].splice(idx, 1);
+        } else if(datos[f].length < 3) {
+            await sb.from('vacaciones_v2').insert({fecha: f, usuario: activeUser, anio: anio});
+            datos[f].push(activeUser);
         }
+        render();
+    }
 
-        async function toggle(f) {
-            if(!datos[f]) datos[f] = [];
-            const idx = datos[f].indexOf(activeUser);
-            if(idx > -1) {
-                await sb.from('vacaciones_v2').delete().match({fecha: f, usuario: activeUser, anio: anio});
-                datos[f].splice(idx, 1);
-            } else if(datos[f].length < 3) {
-                await sb.from('vacaciones_v2').insert({fecha: f, usuario: activeUser, anio: anio});
-                datos[f].push(activeUser);
-            }
-            cargar();
-        }
+    function render() {
+        // Selector
+        document.getElementById('selector').innerHTML = Object.keys(users).map(u => `
+            <div class="user-card ${activeUser === u ? 'active' : ''}" onclick="activeUser='${u}'; render()">
+                <div style="color:${users[u]}">●</div> ${u}
+            </div>`).join('');
 
-        function render() {
-            document.getElementById('selector').innerHTML = Object.keys(users).map(u => `
-                <div class="user-card ${activeUser === u ? 'active' : ''}" onclick="activeUser='${u}'; render()">
-                    <span style="color:${users[u]}">●</span> ${u}
-                </div>`).join('');
-
-            const cal = document.getElementById('cal'); cal.innerHTML = '';
+        // Resumen
+        let resHtml = '<h3>Resumen de días</h3>';
+        Object.keys(users).forEach(u => {
+            let userDates = [];
             const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-            
-            meses.forEach((m, idx) => {
-                const mesDiv = document.createElement('div'); mesDiv.className = 'mes-card';
-                const firstDay = new Date(anio, idx, 1).getDay();
-                const daysInMonth = new Date(anio, idx + 1, 0).getDate();
-                
-                mesDiv.innerHTML = `<h3>${m}</h3>
-                    <div class="grid-header"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div>
-                    <div class="grid-dias" id="m${idx}"></div>`;
-                cal.appendChild(mesDiv);
-                
-                const grid = mesDiv.querySelector('#m'+idx);
-                for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div')); // Espacio vacío
-                
-                for(let d=1; d<=daysInMonth; d++) {
-                    const f = `${anio}-${String(idx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                    const div = document.createElement('div'); div.className = 'dia'; div.innerHTML = d;
-                    if(datos[f]) datos[f].forEach(u => div.innerHTML += `<div class="bloque" style="background:${users[u]}"></div>`);
-                    div.onclick = () => toggle(f);
-                    grid.appendChild(div);
-                }
+            meses.forEach((m, i) => {
+                const dias = Object.keys(datos).filter(f => f.startsWith(`${anio}-${String(i+1).padStart(2,'0')}`) && datos[f].includes(u)).map(f => f.split('-')[2]);
+                if(dias.length > 0) userDates.push(`${m}:${dias.join(',')}`);
             });
+            resHtml += `<div class="resumen-item"><b>${u}:</b> ${userDates.join(' | ')}</div>`;
+        });
+        document.getElementById('resumen').innerHTML = resHtml;
 
-            // Resumen simplificado
-            let resHtml = '<h3>Resumen de días</h3>';
-            Object.keys(users).forEach(u => {
-                let text = `<b>${u}:</b> `;
-                meses.forEach((m, i) => {
-                    const diasMes = Object.keys(datos).filter(f => f.startsWith(`${anio}-${String(i+1).padStart(2,'0')}`) && datos[f].includes(u)).map(f => f.split('-')[2]);
-                    if(diasMes.length > 0) text += `${m} (${diasMes.join(', ')}), `;
-                });
-                resHtml += `<div>${text}</div>`;
-            });
-            document.getElementById('resumen').innerHTML = resHtml;
-        }
+        // Calendario
+        const cal = document.getElementById('cal'); cal.innerHTML = '';
+        const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+        mesesNombres.forEach((m, idx) => {
+            const mesDiv = document.createElement('div'); mesDiv.className = 'mes-card';
+            const firstDay = new Date(anio, idx, 1).getDay();
+            const daysInMonth = new Date(anio, idx + 1, 0).getDate();
+            mesDiv.innerHTML = `<h3>${m}</h3><div class="grid-header"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div><div class="grid-dias" id="m${idx}"></div>`;
+            cal.appendChild(mesDiv);
+            const grid = mesDiv.querySelector('#m'+idx);
+            for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div'));
+            for(let d=1; d<=daysInMonth; d++) {
+                const f = `${anio}-${String(idx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const div = document.createElement('div'); div.className = 'dia'; div.innerHTML = d;
+                if(datos[f]) datos[f].forEach(u => div.innerHTML += `<div class="bloque" style="background:${users[u]}"></div>`);
+                div.onclick = () => toggle(f);
+                grid.appendChild(div);
+            }
+        });
+    }
 
-        function setAnio(a) { anio = a; cargar(); }
-        cargar();
-    </script>
+    function setAnio(a) { anio = a; cargar(); }
+    cargar();
+</script>
 </body>
 </html>
