@@ -1,8 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario de Guardias y Vacaciones</title>
+    <style>
+        :root {
+            --bg-principal: #121214;
+            --bg-tarjeta: #1a1a1e;
+            --bg-input: #26262b;
+            --borde: #2d2d34;
+            --texto-principal: #ffffff;
+            --texto-secundario: #a1a1aa;
+            --accent: #4f46e5;
+            
+            --sergio-color: #3b82f6; 
+            --sergio-bg-alpha: rgba(59, 130, 246, 0.15);
+            --sergio-vaca-border: #60a5fa;
+
+            --joaquin-color: #10b981; 
+            --joaquin-bg-alpha: rgba(16, 185, 129, 0.15);
+            --joaquin-vaca-border: #34d399;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-principal);
+            color: var(--texto-principal);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .contenedor-principal {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        /* Selectores de Año */
+        .selector-anio-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn-anio {
+            background-color: var(--bg-tarjeta);
+            border: 1px solid var(--borde);
+            color: var(--texto-secundario);
+            padding: 10px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-anio:hover {
+            border-color: var(--texto-secundario);
+            color: var(--texto-principal);
+        }
+
+        .btn-anio.activo {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Panel de Control Central */
+        .panel-control {
+            background-color: var(--bg-tarjeta);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .panel-control {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .seccion-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .seccion-panel h3 {
+            font-size: 0.9rem;
+            color: var(--texto-secundario);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Buscador Rápido */
+        .buscador-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            width: 100%;
+        }
+
+        input[type="date"] {
+            background-color: var(--bg-input);
+            border: 1px solid var(--borde);
+            color: var(--texto-principal);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            flex-grow: 1;
+            transition: border-color 0.2s;
+        }
+
+        input[type="date"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn-limpiar {
+            background-color: var(--bg-input);
+            border: 1px solid var(--borde);
+            color: var(--texto-secundario);
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-limpiar:hover {
+            color: var(--texto-principal);
+            border-color: var(--texto-secundario);
+        }
+
+        .resultado-busqueda-box {
+            margin-top: 10px;
+            font-size: 0.95rem;
+            min-height: 24px;
+            color: var(--texto-secundario);
+        }
+
+        /* Interruptores de Modo Vacaciones */
+        .modos-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-modo {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--borde);
+            background-color: var(--bg-input);
+            color: var(--texto-secundario);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-modo::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: transparent;
+        }
+
+        .btn-modo[data-modo="Sergio"]::before { background-color: var(--sergio-color); }
+        .btn-modo[data-modo="Joaquín"]::before { background-color: var(--joaquin-color); }
+
+        .btn-modo.activo[data-modo="Sergio"] {
+            background-color: var(--sergio-bg-alpha);
+            border-color: var(--sergio-color);
+            color: white;
+        }
+
+        .btn-modo.activo[data-modo="Joaquín"] {
+            background-color: var(--joaquin-bg-alpha);
+            border-color: var(--joaquin-color);
+            color: white;
+        }
+
+        /* Contenedores de Totales de Cómputo */
+        .totales-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .tarjeta-total {
+            background-color: var(--bg-tarjeta);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tarjeta-total.sergio { border-left: 4px solid var(--sergio-color); }
+        .tarjeta-total.joaquin { border-left: 4px solid var(--joaquin-color); }
+
+        .tarjeta-total .nombre {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .tarjeta-total .nombre.s-title { color: var(--sergio-color); }
+        .tarjeta-total .nombre.j-title { color: var(--joaquin-color); }
+
+        .lista-meses-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        @media (min-width: 600px) {
+            .lista-meses-grid { grid-template-columns: repeat(6, 1fr); }
+        }
+
+        .mes-item {
+            background-color: var(--bg-input);
+            padding: 6px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--texto-secundario);
+            text-transform: uppercase;
+        }
+
+        .mes-item span {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--texto-principal);
+            margin-top: 2px;
+        }
+
+        .gran-total {
+            font-size: 1.05rem;
+            font-weight: bold;
+            text-align: right;
+            border-top: 1px solid var(--borde);
+            padding-top: 8px;
+            color: var(--texto-principal);
+        }
+
+        /* Grid del Calendario Completo */
+        .calendario-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .calendario-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1024px) {
+            .calendario-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .mes-contenedor {
+            background-color: var(--bg-tarjeta);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .mes-titulo {
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-transform: capitalize;
+            margin-bottom: 12px;
+            color: var(--texto-principal);
+        }
+
+        .dias-semana-grid, .dias-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+        }
+
+        .dias-semana-grid {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--texto-secundario);
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--borde);
+            padding-bottom: 4px;
+        }
+
+        .dia {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            margin: 2px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 500;
+            position: relative;
+            background-color: transparent;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .dia:hover:not(.vacio) {
+            background-color: var(--bg-input);
+            border-color: var(--borde);
+        }
+
+        .dia.vacio {
+            cursor: default;
+        }
+
+        /* Reglas estéticas para las Guardias por Defecto (Fondo sutil) */
+        .guardia-sergio {
+            background-color: var(--sergio-bg-alpha);
+            color: #93c5fd;
+        }
+
+        .guardia-joaquin {
+            background-color: var(--joaquin-bg-alpha);
+            color: #6ee7b7;
+        }
+
+        /* Reglas estéticas de Vacaciones (Bordes marcados e indicadores) */
+        .dia.v-sergio {
+            border: 1.5px solid var(--sergio-vaca-border) !important;
+        }
+        .dia.v-sergio::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--sergio-color);
+        }
+
+        .dia.v-joaquin {
+            border: 1.5px solid var(--joaquin-vaca-border) !important;
+        }
+        .dia.v-joaquin::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--joaquin-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="contenedor-principal">
+    <header>
+        <h1 id="titulo-principal">Guardias y Vacaciones 2026</h1>
+        
+        <div class="selector-anio-container">
+            <button class="btn-anio activo" onclick="cambiarAnio(2026)">2026</button>
+            <button class="btn-anio" onclick="cambiarAnio(2027)">2027</button>
+        </div>
+    </header>
+
+    <!-- Panel de control interactivo -->
+    <div class="panel-control">
+        <div class="seccion-panel">
+            <h3 id="label-buscador">Buscador rápido de guardia (2026):</h3>
+            <div class="buscador-wrapper">
+                <input type="date" id="buscar-fecha" min="2026-01-01" max="2026-12-31">
+                <button class="btn-limpiar" onclick="limpiarBusqueda()">Limpiar</button>
+            </div>
+            <div id="resultado-busqueda" class="resultado-busqueda-box"></div>
+        </div>
+
+        <div class="seccion-panel">
+            <h3>Asignar Vacaciones a:</h3>
+            <div class="modos-container">
+                <button class="btn-modo" data-modo="Sergio" onclick="void(0)">Sergio</button>
+                <button class="btn-modo activo" data-modo="Joaquín" onclick="void(0)">Joaquín</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paneles de conteo mensual y anual -->
+    <div class="totales-container">
+        <div class="tarjeta-total sergio">
+            <div class="nombre s-title">Sergio</div>
+            <div class="lista-meses-grid" id="lista-meses-sergio"></div>
+            <div class="gran-total" id="total-sergio">Total Año: 0</div>
+        </div>
+        
+        <div class="tarjeta-total joaquin">
+            <div class="nombre j-title">Joaquín</div>
+            <div class="lista-meses-grid" id="lista-meses-joaquin"></div>
+            <div class="gran-total" id="total-joaquin">Total Año: 0</div>
+        </div>
+    </div>
+
+    <!-- Contenedor dinámico del Calendario -->
+    <div class="calendario-grid" id="calendario-completo"></div>
+</div>
+
+<!-- Librería oficial de Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // 2. CONFIGURACIÓN DE SUPABASE (Pon aquí tus datos del Paso 3)
-    const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co/rest/v1/";
+    // CONFIGURACIÓN DE SUPABASE INTEGRADA EXACTA
+    const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5";
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -12,7 +455,7 @@
     let anioActual = 2026;
     let modoVacacionesActual = 'Joaquín';
 
-    // Estructura temporal en memoria (se rellenará con lo que traiga Supabase)
+    // Estructura de memoria local limpia (se alimentará en tiempo real de la base de datos)
     let vacacionesPorAnio = {
         2026: { Joaquín: {}, Sergio: {} },
         2027: { Joaquín: {}, Sergio: {} }
@@ -24,8 +467,8 @@
     };
 
     function inicializarSemanas() {
-        // --- GENERAR SEMANAS 2026 ---
-        let fechaIteracion2026 = new Date(2025, 11, 29);
+        // --- GENERACIÓN DE SEMANAS PARA EL AÑO 2026 ---
+        let fechaIteracion2026 = new Date(2025, 11, 29); // Lunes 29 Dic 2025
         let titularActual = 'Sergio';
 
         for (let i = 0; i < 54; i++) {
@@ -46,11 +489,11 @@
             fechaIteracion2026.setDate(fechaIteracion2026.getDate() + 7);
         }
 
-        // --- GENERAR SEMANAS 2027 ---
+        // --- GENERACIÓN DE SEMANAS PARA EL AÑO 2027 ---
         let ultimaSemana2026 = semanasPorAnio[2026][semanasPorAnio[2026].length - 1];
         let titularInicio2027 = (ultimaSemana2026.titularBase === 'Sergio') ? 'Joaquín' : 'Sergio';
 
-        let fechaIteracion2027 = new Date(2026, 11, 28);
+        let fechaIteracion2027 = new Date(2026, 11, 28); // Lunes 28 Dic 2026
         titularActual = titularInicio2027;
 
         for (let i = 0; i < 54; i++) {
@@ -72,19 +515,19 @@
         }
     }
 
-    // NUEVA FUNCIÓN: CARGAR DATOS DESDE LA NUBE
+    // CARGAR Y SINCRONIZAR DATOS DESDE SUPABASE NUBE
     async function cargarVacacionesDesdeBD() {
         try {
             const { data, error } = await supabase.from('vacaciones').select('*');
             if (error) throw error;
 
-            // Resetear estructura limpia antes de mapear
+            // Limpiar la estructura antes de mapear
             vacacionesPorAnio = {
                 2026: { Joaquín: {}, Sergio: {} },
                 2027: { Joaquín: {}, Sergio: {} }
             };
 
-            // Rellenar con los registros de Supabase
+            // Volcar los registros recuperados de la nube
             if (data) {
                 data.forEach(item => {
                     if (vacacionesPorAnio[item.anio] && vacacionesPorAnio[item.anio][item.usuario]) {
@@ -93,12 +536,12 @@
                 });
             }
 
-            // Forzar repintado de la interfaz con los datos nuevos
+            // Pintar de inmediato la interfaz completa
             actualizarPanelesEfectivos();
             renderizarCalendarioCompleto();
             ejecutarBusqueda();
         } catch (err) {
-            console.error("Error al sincronizar con Supabase:", err.message);
+            console.error("Error cargando datos de la base de datos:", err.message);
         }
     }
 
@@ -186,29 +629,29 @@
         document.getElementById('total-joaquin').innerText = `Total Año: ${totalJ}`;
     }
 
-    // NUEVA FUNCIÓN: COMMUTAR Y SINCRONIZAR DE INMEDIATO EN LA BD
+    // CONMUTAR CLICKS Y PERSISTIR EN SUPABASE DIRECTAMENTE
     async function conmutarVacaciones(fechaStr) {
         let compañero = (modoVacacionesActual === 'Joaquín') ? 'Sergio' : 'Joaquín';
         let vacasAnio = vacacionesPorAnio[anioActual];
 
-        // 1. Si el compañero tenía este día seleccionado, se limpia en local y en BD
+        // 1. Limpieza de seguridad: si el compañero tenía este día asignado, se le borra de local y nube
         if (vacasAnio[compañero][fechaStr]) {
             delete vacasAnio[compañero][fechaStr];
             await supabase.from('vacaciones').delete().match({ anio: anioActual, usuario: compañero, fecha: fechaStr });
         }
 
-        // 2. Conmutar el usuario seleccionado actual
+        // 2. Conmutar el día para el usuario activo
         if (vacasAnio[modoVacacionesActual][fechaStr]) {
             delete vacasAnio[modoVacacionesActual][fechaStr];
-            // Borrar de la base de datos nube
+            // Mandar borrado a la nube
             await supabase.from('vacaciones').delete().match({ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr });
         } else {
             vacasAnio[modoVacacionesActual][fechaStr] = true;
-            // Insertar en la base de datos nube
+            // Mandar inserción a la nube
             await supabase.from('vacaciones').insert([{ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr }]);
         }
         
-        // Renderizar cambios visuales
+        // Repintar interfaz gráfica tras actualización
         actualizarPanelesEfectivos();
         renderizarCalendarioCompleto();
         ejecutarBusqueda();
@@ -289,10 +732,10 @@
         inputFecha.max = `${nuevoAnio}-12-31`;
         inputFecha.value = ''; 
 
-            document.querySelectorAll('.btn-anio').forEach(btn => {
-                if(btn.innerText == nuevoAnio) btn.classList.add('activo');
-                else btn.classList.remove('activo');
-            });
+        document.querySelectorAll('.btn-anio').forEach(btn => {
+            if(btn.innerText == nuevoAnio) btn.classList.add('activo');
+            else btn.classList.remove('activo');
+        });
 
         actualizarPanelesEfectivos();
         renderizarCalendarioCompleto();
@@ -351,7 +794,9 @@
 
     document.getElementById('buscar-fecha').addEventListener('input', ejecutarBusqueda);
 
-    // Inicialización de la aplicación conectada a la BD
+    // Arranque de la aplicación conectada globalmente
     inicializarSemanas();
-    cargarVacacionesDesdeBD(); // Llama a la nube al cargar la página
+    cargarVacacionesDesdeBD();
 </script>
+</body>
+</html>
