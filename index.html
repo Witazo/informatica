@@ -401,10 +401,10 @@
 
     <div class="calendario-anual" id="calendario-completo"></div>
 
-    <!-- Script oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
+        // Inicialización del cliente con tus datos exactos de producción
         const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -415,15 +415,30 @@
         let anioActual = 2026;
         let modoVacacionesActual = 'Joaquín';
 
-        let vacacionesPorAnio = {
-            2026: { Joaquín: {}, Sergio: {} },
-            2027: { Joaquín: {}, Sergio: {} }
-        };
+        // Estructura base limpia
+        let vacacionesPorAnio = {};
 
         let semanasPorAnio = {
             2026: [],
             2027: []
         };
+
+        // Formateador local seguro anti-desfases de zona horaria
+        function formatearFechaLocal(fecha) {
+            const y = fecha.getFullYear();
+            const m = String(fecha.getMonth() + 1).padStart(2, '0');
+            const d = String(fecha.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // Asegura que no existan propiedades undefined al leer los años
+        function blindarEstructuraAnio(anio) {
+            if (!vacacionesPorAnio[anio]) {
+                vacacionesPorAnio[anio] = { Joaquín: {}, Sergio: {} };
+            }
+            if (!vacacionesPorAnio[anio].Joaquín) vacacionesPorAnio[anio].Joaquín = {};
+            if (!vacacionesPorAnio[anio].Sergio) vacacionesPorAnio[anio].Sergio = {};
+        }
 
         function inicializarSemanas() {
             let fechaIteracion2026 = new Date(2025, 11, 29);
@@ -477,6 +492,7 @@
                 const { data, error } = await supabase.from('vacaciones').select('*');
                 if (error) throw error;
 
+                // Resetear y reestructurar de forma segura
                 vacacionesPorAnio = {
                     2026: { Joaquín: {}, Sergio: {} },
                     2027: { Joaquín: {}, Sergio: {} }
@@ -484,26 +500,31 @@
 
                 if (data) {
                     data.forEach(item => {
-                        if (vacacionesPorAnio[item.anio] && vacacionesPorAnio[item.anio][item.usuario]) {
+                        blindarEstructuraAnio(item.anio);
+                        if (vacacionesPorAnio[item.anio][item.usuario]) {
                             vacacionesPorAnio[item.anio][item.usuario][item.fecha] = true;
                         }
                     });
                 }
-
+            } catch (err) {
+                console.error("Error cargando de Supabase, usando local temporal:", err.message);
+            } finally {
+                // Forzar renderizado pase lo que pase para evitar pantallas en blanco
+                blindarEstructuraAnio(2026);
+                blindarEstructuraAnio(2027);
                 actualizarPanelesEfectivos();
                 renderizarCalendarioCompleto();
                 ejecutarBusqueda();
-            } catch (err) {
-                console.error("Error al sincronizar con Supabase:", err.message);
             }
         }
 
         function analizarDiaEfectivo(fecha, anio) {
+            blindarEstructuraAnio(anio);
             const semanas = semanasPorAnio[anio];
             const semana = semanas.find(s => fecha >= s.lunes && fecha <= s.domingo);
             if (!semana) return { titularBase: null, titularEfectivo: null, semanaId: null };
 
-            const fechaStr = fecha.toISOString().split('T')[0];
+            const fechaStr = formatearFechaLocal(fecha);
             const vacasJoaquin = vacacionesPorAnio[anio].Joaquín[fechaStr] || false;
             const vacasSergio = vacacionesPorAnio[anio].Sergio[fechaStr] || false;
 
@@ -517,7 +538,7 @@
             }
 
             return {
-                semanaId: ...semana,
+                semanaId: semana.id,
                 mesCobro: semana.mesCobro,
                 titularBase: titularBase,
                 titularEfectivo: titularEfectivo,
@@ -529,6 +550,7 @@
         function calcularGuardiasMensuales() {
             let cobros = { Sergio: Array(12).fill(0), Joaquín: Array(12).fill(0) };
             const semanas = semanasPorAnio[anioActual];
+            blindarEstructuraAnio(anioActual);
             const vacasAnio = vacacionesPorAnio[anioActual];
 
             semanas.forEach(semana => {
@@ -541,9 +563,9 @@
                 for (let d = 0; d < 7; d++) {
                     let diaAux = new Date(semana.lunes);
                     diaAux.setDate(semana.lunes.getDate() + d);
-                    let diaAuxStr = diaAux.toISOString().split('T')[0];
+                    let diaAuxStr = formatearFechaLocal(diaAux);
 
-                    if (vacasAnio[titularOriginal][diaAuxStr]) {
+                    if (vacasAnio[titularOriginal] && vacasAnio[titularOriginal][diaAuxStr]) {
                         tieneVacacionesElOriginal = true;
                         break;
                     }
@@ -571,8 +593,8 @@
             let totalS = 0, totalJ = 0;
 
             nombresMeses.forEach((mes, index) => {
-                let mS = datos.Sergio[index];
-                let mJ = datos.Joaquín[index];
+                let mS = datos.Sergio[index] || 0;
+                let mJ = datos.Joaquín[index] || 0;
                 totalS += mS; totalJ += mJ;
                 let abr = mes.substring(0, 3);
 
@@ -585,17 +607,20 @@
         }
 
         async function conmutarVacaciones(fechaStr) {
+            blindarEstructuraAnio(anioActual);
             let compañero = (modoVacacionesActual === 'Joaquín') ? 'Sergio' : 'Joaquín';
             let vacasAnio = vacacionesPorAnio[anioActual];
 
+            // 1. Limpiar día en el compañero si estuviera marcado
             if (vacasAnio[compañero][fechaStr]) {
                 delete vacasAnio[compañero][fechaStr];
-                await supabase.from('vacaciones').delete().match({ anio: anioActual, usuario: compañero, fecha: fechaStr });
+                await supabase.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', compañero).eq('fecha', fechaStr);
             }
 
+            // 2. Conmutar estado del usuario seleccionado
             if (vacasAnio[modoVacacionesActual][fechaStr]) {
                 delete vacasAnio[modoVacacionesActual][fechaStr];
-                await supabase.from('vacaciones').delete().match({ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr });
+                await supabase.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', modoVacacionesActual).eq('fecha', fechaStr);
             } else {
                 vacasAnio[modoVacacionesActual][fechaStr] = true;
                 await supabase.from('vacaciones').insert([{ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr }]);
@@ -645,7 +670,7 @@
                 let diasEnMes = new Date(anioActual, mesIndex + 1, 0).getDate();
                 for (let d = 1; d <= diasEnMes; d++) {
                     let fechaActual = new Date(anioActual, mesIndex, d);
-                    let fechaStr = fechaActual.toISOString().split('T')[0];
+                    let fechaStr = formatearFechaLocal(fechaActual);
                     
                     let diaDiv = document.createElement('div');
                     diaDiv.className = 'dia';
@@ -745,7 +770,7 @@
 
         document.getElementById('buscar-fecha').addEventListener('input', ejecutarBusqueda);
 
-        // Arranque de la aplicación
+        // Ciclo de arranque limpio de la aplicación
         inicializarSemanas();
         cargarVacacionesDesdeBD();
     </script>
