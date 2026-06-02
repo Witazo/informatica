@@ -2,110 +2,107 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gestión de Vacaciones</title>
+    <title>Gestión de Vacaciones PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #0f0f12; --card: #18181b; --text: #e4e4e7; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; }
-        .controles { text-align: center; margin-bottom: 20px; }
-        .selector-box { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; background: #222; padding: 10px; }
-        .user-btn { cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; }
-        .user-btn.activo { border-color: white; }
+        :root { --bg: #09090b; --card: #18181b; --accent: #3f3f46; --text: #fafafa; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; }
+        button { padding: 10px 20px; border-radius: 8px; border: none; background: #27272a; color: white; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #52525b; }
+        .selector { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; }
+        .user-card { padding: 15px; background: var(--card); border-radius: 12px; cursor: pointer; border: 2px solid transparent; text-align: center; }
+        .user-card.active { border-color: #3b82f6; }
         
-        .resumen-tabla { width: 100%; max-width: 800px; margin: 20px auto; border-collapse: collapse; background: #222; }
-        .resumen-tabla th, .resumen-tabla td { padding: 10px; border: 1px solid #444; text-align: left; }
-        
-        .calendario { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .mes { background: var(--card); padding: 10px; border-radius: 8px; }
-        .dias-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-        .dia { aspect-ratio: 1; font-size: 0.7rem; cursor: pointer; display: flex; flex-direction: column; overflow: hidden; }
-        .bloque { flex-grow: 1; }
+        .calendario-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .mes-card { background: var(--card); padding: 15px; border-radius: 16px; }
+        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+        .dia { aspect-ratio: 1; border-radius: 6px; background: #27272a; display: flex; flex-direction: column; cursor: pointer; font-size: 0.7rem; overflow: hidden; }
+        .bloque { flex: 1; width: 100%; }
+
+        .resumen-tabla { width: 100%; max-width: 900px; margin: 40px auto; background: var(--card); border-radius: 16px; overflow: hidden; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #27272a; }
     </style>
 </head>
 <body>
 
-    <h1 style="text-align:center">Vacaciones 2026/2027</h1>
-    <div class="controles">
-        <button onclick="cambiarAnio(2026)">Ver 2026</button>
-        <button onclick="cambiarAnio(2027)">Ver 2027</button>
+    <h1 style="text-align:center">Panel de Vacaciones</h1>
+    <div class="nav">
+        <button onclick="setAnio(2026)">2026</button>
+        <button onclick="setAnio(2027)">2027</button>
     </div>
 
-    <div id="selector" class="selector-box"></div>
-    <div id="resumen-detalle"></div>
-    <div id="cal" class="calendario"></div>
+    <div id="selector" class="selector"></div>
+    <div id="resumen-container"></div>
+    <div id="cal" class="calendario-container"></div>
 
     <script>
         const sb = window.supabase.createClient("https://ipxuihzkakirvlszxknd.supabase.co", "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5");
-        const usuarios = { 'Joaquin': '#166534', 'Juan': '#581c87', 'Leon': '#991b1b', 'Sergio': '#a16207' };
-        let anioActual = 2026; let user = 'Joaquin'; let datos = {};
+        const users = { 'Joaquin': '#16a34a', 'Juan': '#7e22ce', 'Leon': '#dc2626', 'Sergio': '#ca8a04' };
+        let anio = 2026, activeUser = 'Joaquin', datos = {};
 
-        function renderSelector() {
-            document.getElementById('selector').innerHTML = Object.keys(usuarios).map(u => `
-                <div class="user-btn ${user === u ? 'activo' : ''}" onclick="setUsuario('${u}')">
-                    ${u} <div style="width:20px;height:20px;background:${usuarios[u]};border-radius:50%"></div>
-                </div>
-            `).join('');
-        }
-
-        window.setUsuario = (u) => { user = u; renderSelector(); render(); };
-        window.cambiarAnio = (a) => { anioActual = a; cargar(); };
+        function setAnio(a) { anio = a; cargar(); }
+        function setActiveUser(u) { activeUser = u; renderUI(); }
 
         async function cargar() {
-            // Nota: cambia 'vacaciones_v2' por 'vacaciones' si no quieres crear tabla nueva
-            const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anioActual);
+            const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anio);
             datos = {};
-            if(data) data.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
-            render();
+            data?.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
+            renderUI();
         }
 
         async function toggle(f) {
             if(!datos[f]) datos[f] = [];
-            const idx = datos[f].indexOf(user);
+            const idx = datos[f].indexOf(activeUser);
             if(idx > -1) {
+                await sb.from('vacaciones_v2').delete().match({fecha: f, usuario: activeUser, anio: anio});
                 datos[f].splice(idx, 1);
-                await sb.from('vacaciones_v2').delete().match({fecha: f, usuario: user, anio: anioActual});
             } else {
-                if(datos[f].length >= 3) return;
-                datos[f].push(user);
-                await sb.from('vacaciones_v2').insert({fecha: f, usuario: user, anio: anioActual});
-            }
-            cargar();
-        }
-
-        function render() {
-            const cal = document.getElementById('cal'); cal.innerHTML = '';
-            const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-            
-            for(let m=0; m<12; m++) {
-                const mesDiv = document.createElement('div'); mesDiv.className = 'mes';
-                mesDiv.innerHTML = `<h3>${mesesNombres[m]} ${anioActual}</h3><div class="dias-grid" id="m${m}"></div>`;
-                cal.appendChild(mesDiv);
-                const grid = mesDiv.querySelector('#m'+m);
-                const days = new Date(anioActual, m+1, 0).getDate();
-                for(let d=1; d<=days; d++) {
-                    const f = `${anioActual}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                    const dia = document.createElement('div'); dia.className = 'dia'; dia.innerHTML = d;
-                    if(datos[f]) {
-                        datos[f].forEach(u => dia.innerHTML += `<div class="bloque" style="background:${usuarios[u]}"></div>`);
-                    }
-                    dia.onclick = () => toggle(f);
-                    grid.appendChild(dia);
+                if(datos[f].length < 3) {
+                    await sb.from('vacaciones_v2').insert({fecha: f, usuario: activeUser, anio: anio});
+                    datos[f].push(activeUser);
                 }
             }
-            renderResumen();
+            renderUI();
         }
 
-        function renderResumen() {
-            let html = '<table class="resumen-tabla"><tr><th>Usuario</th><th>Detalle</th><th>Total</th></tr>';
-            Object.keys(usuarios).forEach(u => {
-                const diasUsuario = [];
-                Object.keys(datos).forEach(f => { if(datos[f].includes(u)) diasUsuario.push(f); });
-                html += `<tr><td>${u}</td><td>${diasUsuario.join(', ')}</td><td>${diasUsuario.length} días</td></tr>`;
+        function renderUI() {
+            // Render Selector
+            document.getElementById('selector').innerHTML = Object.keys(users).map(u => `
+                <div class="user-card ${activeUser === u ? 'active' : ''}" onclick="setActiveUser('${u}')">
+                    <div style="width:12px;height:12px;background:${users[u]};border-radius:50%;margin:0 auto 5px"></div>
+                    ${u}
+                </div>
+            `).join('');
+
+            // Render Calendario
+            const cal = document.getElementById('cal'); cal.innerHTML = '';
+            const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+            meses.forEach((m, idx) => {
+                const mesDiv = document.createElement('div'); mesDiv.className = 'mes-card';
+                mesDiv.innerHTML = `<h3>${m}</h3><div class="grid-dias" id="m${idx}"></div>`;
+                cal.appendChild(mesDiv);
+                const grid = mesDiv.querySelector('.grid-dias');
+                const days = new Date(anio, idx + 1, 0).getDate();
+                for(let d=1; d<=days; d++) {
+                    const f = `${anio}-${String(idx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const div = document.createElement('div'); div.className = 'dia'; div.innerHTML = `<span style="padding:2px">${d}</span>`;
+                    if(datos[f]) datos[f].forEach(u => div.innerHTML += `<div class="bloque" style="background:${users[u]}"></div>`);
+                    div.onclick = () => toggle(f);
+                    grid.appendChild(div);
+                }
             });
-            document.getElementById('resumen-detalle').innerHTML = html + '</table>';
+
+            // Render Resumen
+            let html = '<table class="resumen-tabla"><tr><th>Usuario</th><th>Detalle de Fechas</th><th>Total</th></tr>';
+            Object.keys(users).forEach(u => {
+                const lista = Object.keys(datos).filter(f => datos[f].includes(u));
+                html += `<tr><td>${u}</td><td>${lista.join(', ')}</td><td><b>${lista.length} días</b></td></tr>`;
+            });
+            document.getElementById('resumen-container').innerHTML = html + '</table>';
         }
 
-        renderSelector(); cargar();
+        cargar();
     </script>
 </body>
 </html>
