@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Guardias y Vacaciones (Multi-Año)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-principal: #121214;
@@ -18,14 +19,14 @@
             --joaquin-bg: rgba(114, 239, 221, 0.15);
             
             /* Colores de Vacaciones */
-            --vacas-joaquin-bg: rgba(230, 76, 76, 0.3);  
+            --vacas-joaquin-bg: rgba(230, 76, 76, 0.3);  /* Tono Rojizo/Coral */
             --vacas-joaquin-color: #e64c4c;
-            --vacas-sergio-bg: rgba(255, 214, 10, 0.25); 
+            --vacas-sergio-bg: rgba(255, 214, 10, 0.25); /* Tono Amarillo */
             --vacas-sergio-color: #ffd60a;
             
             /* Puntos indicadores discretos */
-            --punto-joaquin: #390;    
-            --punto-sergio: #ff4d4d;   
+            --punto-joaquin: #390;    /* Verde */
+            --punto-sergio: #ff4d4d;   /* Rojo */
             
             --borde: #29292e;
         }
@@ -58,6 +59,11 @@
             font-size: 1.8rem;
             color: #fff;
             margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--texto-secundario);
+            font-size: 0.9rem;
         }
 
         /* Selector de Año */
@@ -119,6 +125,7 @@
             outline: none;
         }
 
+        /* Botón Limpiar */
         .btn-limpiar {
             background: #202024;
             border: 1px solid var(--borde);
@@ -219,6 +226,10 @@
             margin-top: 5px;
         }
 
+        @media (max-width: 480px) {
+            .guardias-mes-lista { grid-template-columns: repeat(3, 1fr); }
+        }
+
         .mes-item {
             background: #202024;
             padding: 4px;
@@ -297,6 +308,7 @@
             background: transparent !important;
         }
 
+        /* Colores Base de Guardias Efectivas */
         .dia.guardia-sergio {
             background-color: var(--sergio-bg);
             color: var(--sergio-color);
@@ -323,6 +335,7 @@
             opacity: 0.8;
         }
 
+        /* Fondos Estilos Vacaciones */
         .dia.v-joaquin {
             background-color: var(--vacas-joaquin-bg) !important;
             color: #fff !important;
@@ -333,6 +346,7 @@
             color: #fff !important;
         }
 
+        /* Puntos indicadores discretos */
         .dia.v-joaquin::before {
             content: '';
             position: absolute;
@@ -360,6 +374,8 @@
 
     <header>
         <h1 id="titulo-principal">Guardias y Vacaciones 2026</h1>
+        <p></p>
+        
         <div class="selector-anio-container">
             <button class="btn-anio activo" onclick="cambiarAnio(2026)">2026</button>
             <button class="btn-anio" onclick="cambiarAnio(2027)">2027</button>
@@ -367,7 +383,7 @@
     </header>
 
     <div class="buscador-contenedor">
-        <label id="label-buscador" style="font-size: 0.9rem; font-weight: bold; color: var(--texto-secundario);"> Buscador rápido de guardia (2026):</label>
+        <label for="buscar-fecha" id="label-buscador" style="font-size: 0.9rem; font-weight: bold; color: var(--texto-secundario);"> Buscador rápido de guardia (2026):</label>
         <div class="buscador-controles">
             <input type="date" id="buscar-fecha" min="2026-01-01" max="2026-12-31">
             <button class="btn-limpiar" onclick="limpiarBusqueda()">Limpiar</button>
@@ -392,7 +408,7 @@
 
         <div class="tarjeta-usuario joaquin">
             <div class="user-header">
-                <span style="color: var(--joaquin-color)">● Joaquín</span>
+                <span style="color: var(--joaquin-color)">● Joaquín </span>
                 <span id="total-joaquin" style="font-size: 0.9rem;">Total Año: 0</span>
             </div>
             <div class="guardias-mes-lista" id="lista-meses-joaquin"></div>
@@ -401,13 +417,13 @@
 
     <div class="calendario-anual" id="calendario-completo"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
-        // Inicialización del cliente con tus datos exactos de producción
+        // --- CONEXIÓN A SUPABASE ---
         const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Inicializamos el cliente de forma segura
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const nombresMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
         const diasSemanaLetras = ["L", "M", "X", "J", "V", "S", "D"];
@@ -415,34 +431,29 @@
         let anioActual = 2026;
         let modoVacacionesActual = 'Joaquín';
 
-        // Estructura base limpia
-        let vacacionesPorAnio = {};
+        // Estructura base de vacaciones, vacía al principio
+        let vacacionesPorAnio = {
+            2026: { Joaquín: {}, Sergio: {} },
+            2027: { Joaquín: {}, Sergio: {} }
+        };
 
         let semanasPorAnio = {
             2026: [],
             2027: []
         };
 
-        // Formateador local seguro anti-desfases de zona horaria
-        function formatearFechaLocal(fecha) {
-            const y = fecha.getFullYear();
-            const m = String(fecha.getMonth() + 1).padStart(2, '0');
-            const d = String(fecha.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-
-        // Asegura que no existan propiedades undefined al leer los años
-        function blindarEstructuraAnio(anio) {
-            if (!vacacionesPorAnio[anio]) {
-                vacacionesPorAnio[anio] = { Joaquín: {}, Sergio: {} };
-            }
-            if (!vacacionesPorAnio[anio].Joaquín) vacacionesPorAnio[anio].Joaquín = {};
-            if (!vacacionesPorAnio[anio].Sergio) vacacionesPorAnio[anio].Sergio = {};
+        // Función para extraer la fecha exacta en la zona horaria de España
+        function obtenerFechaLocalTexto(fecha) {
+            const anio = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            return `${anio}-${mes}-${dia}`;
         }
 
         function inicializarSemanas() {
-            let fechaIteracion2026 = new Date(2025, 11, 29);
-            let titularActual = 'Sergio';
+            // --- GENERAR SEMANAS 2026 ---
+            let fechaIteracion2026 = new Date(2025, 11, 29); // Lunes previo a 2026
+            let titularActual = 'Sergio'; // Inicia Sergio la primera semana
 
             for (let i = 0; i < 54; i++) {
                 let lunes = new Date(fechaIteracion2026);
@@ -462,10 +473,11 @@
                 fechaIteracion2026.setDate(fechaIteracion2026.getDate() + 7);
             }
 
+            // --- GENERAR SEMANAS 2027 ---
             let ultimaSemana2026 = semanasPorAnio[2026][semanasPorAnio[2026].length - 1];
             let titularInicio2027 = (ultimaSemana2026.titularBase === 'Sergio') ? 'Joaquín' : 'Sergio';
 
-            let fechaIteracion2027 = new Date(2026, 11, 28);
+            let fechaIteracion2027 = new Date(2026, 11, 28); // Lunes previo a 2027
             titularActual = titularInicio2027;
 
             for (let i = 0; i < 54; i++) {
@@ -487,44 +499,40 @@
             }
         }
 
-        async function cargarVacacionesDesdeBD() {
+        // --- CARGA DE DATOS DESDE SUPABASE ---
+        async function cargarDatosNube() {
             try {
-                const { data, error } = await supabase.from('vacaciones').select('*');
+                const { data, error } = await supabaseClient.from('vacaciones').select('*');
                 if (error) throw error;
 
-                // Resetear y reestructurar de forma segura
-                vacacionesPorAnio = {
-                    2026: { Joaquín: {}, Sergio: {} },
-                    2027: { Joaquín: {}, Sergio: {} }
-                };
-
                 if (data) {
-                    data.forEach(item => {
-                        blindarEstructuraAnio(item.anio);
-                        if (vacacionesPorAnio[item.anio][item.usuario]) {
-                            vacacionesPorAnio[item.anio][item.usuario][item.fecha] = true;
+                    // Volvemos a inicializar por seguridad antes de meter datos
+                    vacacionesPorAnio = {
+                        2026: { Joaquín: {}, Sergio: {} },
+                        2027: { Joaquín: {}, Sergio: {} }
+                    };
+
+                    data.forEach(registro => {
+                        if (vacacionesPorAnio[registro.anio] && vacacionesPorAnio[registro.anio][registro.usuario]) {
+                            vacacionesPorAnio[registro.anio][registro.usuario][registro.fecha] = true;
                         }
                     });
                 }
-            } catch (err) {
-                console.error("Error cargando de Supabase, usando local temporal:", err.message);
+            } catch (error) {
+                console.error("No se pudo cargar desde Supabase:", error);
             } finally {
-                // Forzar renderizado pase lo que pase para evitar pantallas en blanco
-                blindarEstructuraAnio(2026);
-                blindarEstructuraAnio(2027);
+                // Al terminar de cargar (con o sin error), refrescamos el calendario visual
                 actualizarPanelesEfectivos();
                 renderizarCalendarioCompleto();
-                ejecutarBusqueda();
             }
         }
 
         function analizarDiaEfectivo(fecha, anio) {
-            blindarEstructuraAnio(anio);
             const semanas = semanasPorAnio[anio];
             const semana = semanas.find(s => fecha >= s.lunes && fecha <= s.domingo);
             if (!semana) return { titularBase: null, titularEfectivo: null, semanaId: null };
 
-            const fechaStr = formatearFechaLocal(fecha);
+            const fechaStr = obtenerFechaLocalTexto(fecha);
             const vacasJoaquin = vacacionesPorAnio[anio].Joaquín[fechaStr] || false;
             const vacasSergio = vacacionesPorAnio[anio].Sergio[fechaStr] || false;
 
@@ -550,7 +558,6 @@
         function calcularGuardiasMensuales() {
             let cobros = { Sergio: Array(12).fill(0), Joaquín: Array(12).fill(0) };
             const semanas = semanasPorAnio[anioActual];
-            blindarEstructuraAnio(anioActual);
             const vacasAnio = vacacionesPorAnio[anioActual];
 
             semanas.forEach(semana => {
@@ -563,9 +570,9 @@
                 for (let d = 0; d < 7; d++) {
                     let diaAux = new Date(semana.lunes);
                     diaAux.setDate(semana.lunes.getDate() + d);
-                    let diaAuxStr = formatearFechaLocal(diaAux);
+                    let diaAuxStr = obtenerFechaLocalTexto(diaAux);
 
-                    if (vacasAnio[titularOriginal] && vacasAnio[titularOriginal][diaAuxStr]) {
+                    if (vacasAnio[titularOriginal][diaAuxStr]) {
                         tieneVacacionesElOriginal = true;
                         break;
                     }
@@ -586,15 +593,13 @@
             const listaSergio = document.getElementById('lista-meses-sergio');
             const listaJoaquin = document.getElementById('lista-meses-joaquin');
             
-            if(!listaSergio || !listaJoaquin) return;
-            
             listaSergio.innerHTML = '';
             listaJoaquin.innerHTML = '';
             let totalS = 0, totalJ = 0;
 
             nombresMeses.forEach((mes, index) => {
-                let mS = datos.Sergio[index] || 0;
-                let mJ = datos.Joaquín[index] || 0;
+                let mS = datos.Sergio[index];
+                let mJ = datos.Joaquín[index];
                 totalS += mS; totalJ += mJ;
                 let abr = mes.substring(0, 3);
 
@@ -606,34 +611,52 @@
             document.getElementById('total-joaquin').innerText = `Total Año: ${totalJ}`;
         }
 
+        // --- GUARDADO DE DATOS (INTERFAZ INMEDIATA + NUBE) ---
         async function conmutarVacaciones(fechaStr) {
-            blindarEstructuraAnio(anioActual);
             let compañero = (modoVacacionesActual === 'Joaquín') ? 'Sergio' : 'Joaquín';
             let vacasAnio = vacacionesPorAnio[anioActual];
 
-            // 1. Limpiar día en el compañero si estuviera marcado
+            let accionCompañero = null;
             if (vacasAnio[compañero][fechaStr]) {
                 delete vacasAnio[compañero][fechaStr];
-                await supabase.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', compañero).eq('fecha', fechaStr);
+                accionCompañero = 'borrar';
             }
 
-            // 2. Conmutar estado del usuario seleccionado
+            let accionPrincipal = null;
             if (vacasAnio[modoVacacionesActual][fechaStr]) {
                 delete vacasAnio[modoVacacionesActual][fechaStr];
-                await supabase.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', modoVacacionesActual).eq('fecha', fechaStr);
+                accionPrincipal = 'borrar';
             } else {
                 vacasAnio[modoVacacionesActual][fechaStr] = true;
-                await supabase.from('vacaciones').insert([{ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr }]);
+                accionPrincipal = 'insertar';
             }
             
+            // Refrescamos la web inmediatamente para que parezca instantáneo
             actualizarPanelesEfectivos();
             renderizarCalendarioCompleto();
             ejecutarBusqueda();
+
+            // Enviamos los cambios a Supabase en segundo plano
+            try {
+                if (accionCompañero === 'borrar') {
+                    await supabaseClient.from('vacaciones')
+                        .delete().eq('anio', anioActual).eq('usuario', compañero).eq('fecha', fechaStr);
+                }
+
+                if (accionPrincipal === 'insertar') {
+                    await supabaseClient.from('vacaciones')
+                        .insert([{ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr }]);
+                } else if (accionPrincipal === 'borrar') {
+                    await supabaseClient.from('vacaciones')
+                        .delete().eq('anio', anioActual).eq('usuario', modoVacacionesActual).eq('fecha', fechaStr);
+                }
+            } catch (error) {
+                console.error("Error al guardar en Supabase:", error);
+            }
         }
 
         function renderizarCalendarioCompleto() {
             const contenedor = document.getElementById('calendario-completo');
-            if(!contenedor) return;
             contenedor.innerHTML = '';
 
             for (let mesIndex = 0; mesIndex < 12; mesIndex++) {
@@ -670,7 +693,7 @@
                 let diasEnMes = new Date(anioActual, mesIndex + 1, 0).getDate();
                 for (let d = 1; d <= diasEnMes; d++) {
                     let fechaActual = new Date(anioActual, mesIndex, d);
-                    let fechaStr = formatearFechaLocal(fechaActual);
+                    let fechaStr = obtenerFechaLocalTexto(fechaActual);
                     
                     let diaDiv = document.createElement('div');
                     diaDiv.className = 'dia';
@@ -723,6 +746,7 @@
 
             if (!inputFecha) {
                 resultadoDiv.innerHTML = "";
+                resultadoDiv.style.color = 'var(--texto-secundario)';
                 return;
             }
 
@@ -737,8 +761,6 @@
 
             let info = analizarDiaEfectivo(fechaSelec, anioActual);
             const semanaObj = semanasPorAnio[anioActual].find(s => info.semanaId === s.id);
-            if(!semanaObj) return;
-
             const opciones = { day: 'numeric', month: 'short' };
             const formatLunes = semanaObj.lunes.toLocaleDateString('es-ES', opciones);
             const formatDomingo = semanaObj.domingo.toLocaleDateString('es-ES', opciones);
@@ -770,9 +792,15 @@
 
         document.getElementById('buscar-fecha').addEventListener('input', ejecutarBusqueda);
 
-        // Ciclo de arranque limpio de la aplicación
+        // Inicialización
         inicializarSemanas();
-        cargarVacacionesDesdeBD();
+        
+        // 1º Pintamos el calendario vacío al instante para que no se vea la pantalla en blanco
+        actualizarPanelesEfectivos();
+        renderizarCalendarioCompleto();
+        
+        // 2º Cargamos los datos de Supabase. Cuando lleguen, el calendario se refresca solo.
+        cargarDatosNube();
     </script>
 </body>
 </html>
