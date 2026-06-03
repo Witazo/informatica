@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>Organizador de Semana — Bauhaus Neo-Brutalist</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f5f0e8;
+            --primary: #1a1a1a;
+            --accent-yellow: #ffcc00;
+            --accent-red: #e63b2e;
+            --border-thick: 3px solid var(--primary);
+            --shadow-offset: 5px 5px 0px var(--primary);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--primary); padding: 20px; padding-bottom: 90px; }
+        
+        .main-container { max-width: 1000px; margin: 0 auto; }
+        .app-header { border-bottom: var(--border-thick); margin-bottom: 25px; padding-bottom: 10px; }
+        .app-title { font-family: 'Space Grotesk', sans-serif; font-size: 2.8rem; text-transform: uppercase; font-weight: 700; line-height: 0.9; }
+
+        /* Barra superior */
+        .top-action-bar { background-color: var(--bg); border: var(--border-thick); padding: 15px 20px; margin-bottom: 25px; box-shadow: var(--shadow-offset); }
+        .contenedor-botones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 15px; }
+        
+        /* Lista de usuarios simplificada */
+        .lista-resumen-usuarios { margin-bottom: 15px; font-family: 'Space Grotesk', sans-serif; }
+        .linea-usuario { font-size: 0.95rem; margin-bottom: 4px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+        
+        .btn-usuario { background: #fff; border: var(--border-thick); padding: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase; }
+        .btn-usuario.active { background-color: var(--accent-yellow); transform: translate(2px,2px); }
+        .btn-reset { background: #fff; border: var(--border-thick); color: var(--accent-red); padding: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase; grid-column: span 2; }
+
+        /* Tarjetas */
+        .semana-container { display: flex; flex-direction: column; gap: 16px; margin-bottom: 30px; }
+        .dia-card { background: #fff; border: var(--border-thick); padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .estado-libre { opacity: 0.6; }
+        .viernes-especial { background-color: var(--accent-red) !important; color: #fff !important; }
+
+        /* Menú navegación inferior[cite: 7] */
+        .bottom-navbar { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg); border-top: var(--border-thick); display: flex; justify-content: space-around; align-items: center; padding: 10px 0; z-index: 1000; box-shadow: 0px -4px 0px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--primary); font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; gap: 4px; }
+        .nav-item svg { width: 24px; height: 24px; fill: currentcolor; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header class="app-header"><h1 class="app-title">Organizador</h1></header>
+
+        <div class="top-action-bar">
+            <div id="lista-resumen" class="lista-resumen-usuarios"></div>
+            
+            <div id="texto-activo" style="font-weight:700; text-align:center; margin-top:10px;">Selecciona un usuario</div>
+            <div class="contenedor-botones" id="botones-usuarios">
+                <button id="btn-reset" class="btn-reset">Borrar Todo</button>
+            </div>
+        </div>
+
+        <div class="semana-container" id="semana-container"></div>
+    </div>
+
+    <nav class="bottom-navbar">
+        <a href="index.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
+            Inicio
+        </a>
+        <a href="vacaciones.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z"></path></svg>
+            Vacaciones
+        </a>
+        <a href="guardias.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5 1.5-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"></path></svg>
+            Guardia
+        </a>
+        <a href="#" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"></path></svg>
+            Viernes
+        </a>
+        <a href="#" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zM4 10.5H1v2h3v-2zm9-6.8V1h-2v2.7h2zM11 21.3V24h2v-2.7h-2zM18.66 5.42l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM23 10.5h-3v2h3v-2zm-4.34 7.66l1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM5.54 16.74l-1.8 1.8 1.41 1.41 1.8-1.79-1.41-1.42zM12 5.5c-3.58 0-6.5 2.92-6.5 6.5s2.92 6.5 6.5 6.5 6.5-2.92 6.5-6.5-2.92-6.5-6.5-6.5z"></path></svg>
+            Intensiva
+        </a>
+    </nav>
+
+    <script>
+        const usuarios = ['Leon', 'Sergio', 'Juan', 'Joaquin'];
+        const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+        const semana = {};
+        dias.forEach(d => semana[d] = { usuario: null, tipo: 0 });
+        let usuarioActivo = null;
+
+        function inicializarBotones() {
+            const contenedor = document.getElementById('botones-usuarios');
+            const btnReset = document.getElementById('btn-reset');
+            usuarios.forEach(user => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-usuario';
+                btn.textContent = user;
+                btn.onclick = () => {
+                    usuarioActivo = user;
+                    document.querySelectorAll('.btn-usuario').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('texto-activo').textContent = "Asignando: " + user;
+                };
+                contenedor.insertBefore(btn, btnReset);
+            });
+            btnReset.onclick = () => {
+                dias.forEach(d => semana[d] = { usuario: null, tipo: 0 });
+                renderSemana();
+            };
+        }
+
+        function procesarClic(dia) {
+            if (!usuarioActivo) return alert("Selecciona un usuario primero.");
+            const d = semana[dia];
+
+            if (dia === 'Viernes') {
+                if (d.usuario === usuarioActivo && d.tipo === 2) { d.usuario = null; d.tipo = 0; }
+                else {
+                    dias.forEach(x => { if(x !== 'Viernes' && semana[x].usuario === usuarioActivo) semana[x] = {usuario: null, tipo: 0}; });
+                    d.usuario = usuarioActivo; d.tipo = 2;
+                }
+            } else {
+                if (semana['Viernes'].usuario === usuarioActivo && semana['Viernes'].tipo === 2) return alert("Viernes exclusivo activo.");
+                if (d.usuario === usuarioActivo) {
+                    if (d.tipo === 1) d.tipo = 2; else { d.usuario = null; d.tipo = 0; }
+                } else { d.usuario = usuarioActivo; d.tipo = 1; }
+            }
+            renderSemana();
+        }
+
+        function renderSemana() {
+            const cont = document.getElementById('semana-container');
+            cont.innerHTML = '';
+            dias.forEach(dia => {
+                const d = semana[dia];
+                const card = document.createElement('div');
+                card.className = `dia-card ${d.usuario ? '' : 'estado-libre'} ${dia === 'Viernes' && d.tipo === 2 ? 'viernes-especial' : ''}`;
+                card.innerHTML = `<div><strong>${dia}</strong></div><div>${d.usuario ? d.usuario + ' (' + (d.tipo==1?'Recupera':'Hasta') + ')' : 'Libre'}</div>`;
+                card.onclick = () => procesarClic(dia);
+                cont.appendChild(card);
+            });
+            actualizarResumenSimplificado();
+        }
+
+        function actualizarResumenSimplificado() {
+            const div = document.getElementById('lista-resumen');
+            div.innerHTML = '';
+            usuarios.forEach(user => {
+                let misDias = [];
+                dias.forEach(dia => { if(semana[dia].usuario === user) misDias.push(dia); });
+                const divLinea = document.createElement('div');
+                divLinea.className = 'linea-usuario';
+                divLinea.innerHTML = `<strong>${user}:</strong> ${misDias.length > 0 ? misDias.join(', ') : 'Ninguno'}`;
+                div.appendChild(divLinea);
+            });
+        }
+
+        inicializarBotones();
+        renderSemana();
+    </script>
+</body>
+</html>
